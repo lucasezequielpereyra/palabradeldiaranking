@@ -3,25 +3,7 @@ import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import GameResult from "@/lib/models/GameResult";
 import User from "@/lib/models/User";
-
-function getWeekBounds(): { start: Date; end: Date } {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? 6 : day - 1; // Monday = 0
-  const start = new Date(now);
-  start.setDate(now.getDate() - diff);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
-  return { start, end };
-}
-
-function getMonthBounds(): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  return { start, end };
-}
+import { getWeekBoundsAR, getMonthBoundsAR } from "@/lib/date";
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,10 +51,10 @@ export async function GET(req: NextRequest) {
     // Aggregate rankings for weekly/monthly/historical
     let dateFilter: Record<string, unknown> = {};
     if (type === "weekly") {
-      const { start, end } = getWeekBounds();
+      const { start, end } = getWeekBoundsAR();
       dateFilter = { submittedAt: { $gte: start, $lt: end } };
     } else if (type === "monthly") {
-      const { start, end } = getMonthBounds();
+      const { start, end } = getMonthBoundsAR();
       dateFilter = { submittedAt: { $gte: start, $lt: end } };
     }
 

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import GameResult from "@/lib/models/GameResult";
 import { parseGameResult } from "@/lib/parser";
+import { getTodayBoundsAR } from "@/lib/date";
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect();
 
+    // Check duplicate game number
     const existing = await GameResult.findOne({
       userId: session.user.id,
       gameNumber: parsed.gameNumber,
@@ -31,6 +33,17 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json({ error: "Ya enviaste un resultado para este juego" }, { status: 409 });
+    }
+
+    // Check: only 1 result per day (Argentina GMT-3)
+    const { start, end } = getTodayBoundsAR();
+    const todayResult = await GameResult.findOne({
+      userId: session.user.id,
+      submittedAt: { $gte: start, $lt: end },
+    });
+
+    if (todayResult) {
+      return NextResponse.json({ error: "Ya enviaste un resultado hoy. Volvé mañana." }, { status: 409 });
     }
 
     const result = await GameResult.create({
