@@ -32,6 +32,23 @@ export default function AdminUserList({ users, onUpdate }: AdminUserListProps) {
     }
   }
 
+  async function handleResetPassword(userId: string, nickname: string) {
+    if (!confirm(`¿Resetear la contraseña de "${nickname}" a 1234?`)) return;
+    setLoading(userId);
+    try {
+      const res = await fetch("/api/admin/users/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        alert(`Contraseña de "${nickname}" reseteada a 1234`);
+      }
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const pending = users.filter((u) => !u.isApproved);
   const approved = users.filter((u) => u.isApproved);
 
@@ -98,6 +115,13 @@ export default function AdminUserList({ users, onUpdate }: AdminUserListProps) {
                 </span>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => handleResetPassword(user._id, user.nickname)}
+                  disabled={loading === user._id}
+                  className="px-3 py-1.5 bg-yellow-600/20 hover:bg-yellow-600/40 text-yellow-400 text-sm rounded-lg disabled:opacity-50"
+                >
+                  Resetear Contraseña
+                </button>
                 {!user.isAdmin && (
                   <button
                     onClick={() => handleAction(user._id, { isAdmin: true })}

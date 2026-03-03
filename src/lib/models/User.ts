@@ -6,6 +6,7 @@ export interface IUser extends Document {
   passwordHash: string;
   isApproved: boolean;
   isAdmin: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
 }
 
@@ -14,6 +15,7 @@ const UserSchema = new Schema<IUser>({
   passwordHash: { type: String, required: true },
   isApproved: { type: Boolean, default: false },
   isAdmin: { type: Boolean, default: false },
+  mustChangePassword: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 

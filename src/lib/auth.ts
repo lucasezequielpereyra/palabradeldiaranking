@@ -28,17 +28,26 @@ export const authOptions: AuthOptions = {
           id: user._id.toString(),
           name: user.nickname,
           isAdmin: user.isAdmin,
-        } as { id: string; name: string; isAdmin: boolean };
+          mustChangePassword: user.mustChangePassword,
+        } as { id: string; name: string; isAdmin: boolean; mustChangePassword: boolean };
       },
     }),
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.nickname = user.name ?? "";
         token.isAdmin = (user as { isAdmin?: boolean }).isAdmin ?? false;
+        token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+      }
+      if (trigger === "update") {
+        await dbConnect();
+        const dbUser = await User.findById(token.id).select("mustChangePassword");
+        if (dbUser) {
+          token.mustChangePassword = dbUser.mustChangePassword;
+        }
       }
       return token;
     },
@@ -47,6 +56,7 @@ export const authOptions: AuthOptions = {
         (session.user as { id?: string }).id = token.id as string;
         (session.user as { nickname?: string }).nickname = token.nickname as string;
         (session.user as { isAdmin?: boolean }).isAdmin = token.isAdmin as boolean;
+        (session.user as { mustChangePassword?: boolean }).mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;
     },

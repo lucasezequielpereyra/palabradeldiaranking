@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import Navbar from "@/components/Navbar";
+import ForcePasswordChange from "@/components/ForcePasswordChange";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-100 min-h-screen`}
       >
         <Providers>
+          <ForcePasswordChange />
           <Navbar />
           <main className="max-w-4xl mx-auto px-4 pb-20 pt-4">
             {children}
