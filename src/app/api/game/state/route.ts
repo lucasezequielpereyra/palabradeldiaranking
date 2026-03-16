@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import GameSession from "@/lib/models/GameSession";
-import DailyWord from "@/lib/models/DailyWord";
 import { getTodayDateAR, getGameNumberForDate } from "@/lib/game-number";
 import { getOrCreateDailyWord } from "@/lib/daily-word-service";
 import { calculatePoints } from "@/lib/points";
@@ -23,7 +22,7 @@ export async function GET() {
     const gameNumber = getGameNumberForDate(todayDate);
 
     // Ensure a daily word exists for today
-    await getOrCreateDailyWord(todayDate, gameNumber);
+    const dailyWord = await getOrCreateDailyWord(todayDate, gameNumber);
 
     const gameSession = await GameSession.findOne({
       userId: session.user.id,
@@ -43,8 +42,7 @@ export async function GET() {
 
     // Only reveal word when game is over
     if (gameSession.status === "won" || gameSession.status === "lost") {
-      const dailyWord = await DailyWord.findOne({ gameNumber });
-      response.word = dailyWord?.word;
+      response.word = dailyWord.word;
       response.attempts = gameSession.guesses.length;
       const failed = gameSession.status === "lost";
       response.points = calculatePoints(gameSession.guesses.length, failed);
