@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import WordleBoard from "./WordleBoard";
 import WordleKeyboard from "./WordleKeyboard";
 import GameEndModal from "./GameEndModal";
 import HowToPlayBanner from "./HowToPlayBanner";
+import { isValidWord } from "@/lib/words";
 import type { TileState } from "@/lib/models/GameSession";
 
 type GameStatus = "loading" | "new" | "playing" | "won" | "lost";
@@ -20,6 +21,9 @@ interface GameState {
   points?: number;
 }
 
+const EMPTY_SLOTS: string[] = ["", "", "", "", ""];
+const REVEAL_DURATION_MS = 5 * 150 + 500 + 300; // stagger + flip + color transition
+
 export default function WordleGame() {
   const { data: session, update: updateSession } = useSession();
   const [gameState, setGameState] = useState<GameState>({
@@ -28,11 +32,18 @@ export default function WordleGame() {
     guesses: [],
     evaluations: [],
   });
-  const [currentGuess, setCurrentGuess] = useState("");
+  const [guessSlots, setGuessSlots] = useState<string[]>([...EMPTY_SLOTS]);
+  const [cursorPosition, setCursorPosition] = useState(0);
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const showHowToPlay = session?.user && !session.user.acceptedNewMode;
+
+  // Optimistic UI state
+  const [pendingGuess, setPendingGuess] = useState<string | null>(null);
+  const [pendingEvaluation, setPendingEvaluation] = useState<TileState[] | null>(null);
+  const [revealPhase, setRevealPhase] = useState<"none" | "checking" | "revealed">("none");
+  const revealTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch initial game state
   useEffect(() => {
@@ -60,9 +71,17 @@ export default function WordleGame() {
     fetchState();
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (revealTimeoutRef.current) clearTimeout(revealTimeoutRef.current);
+    };
+  }, []);
+
   // Compute letter states for keyboard coloring
   const letterStates = useMemo(() => {
     const states: Record<string, TileState> = {};
+    // Include confirmed guesses
     for (let i = 0; i < gameState.guesses.length; i++) {
       const guess = gameState.guesses[i];
       const evaluation = gameState.evaluations[i];
@@ -71,14 +90,24 @@ export default function WordleGame() {
         const letter = guess[j];
         const current = states[letter];
         const newState = evaluation[j];
-        // Priority: correct > present > absent
+        if (!current || newState === "correct" || (newState === "present" && current === "absent")) {
+          states[letter] = newState;
+        }
+      }
+    }
+    // Include pending guess if revealed
+    if (pendingGuess && pendingEvaluation && revealPhase === "revealed") {
+      for (let j = 0; j < pendingGuess.length; j++) {
+        const letter = pendingGuess[j];
+        const current = states[letter];
+        const newState = pendingEvaluation[j];
         if (!current || newState === "correct" || (newState === "present" && current === "absent")) {
           states[letter] = newState;
         }
       }
     }
     return states;
-  }, [gameState.guesses, gameState.evaluations]);
+  }, [gameState.guesses, gameState.evaluations, pendingGuess, pendingEvaluation, revealPhase]);
 
   const triggerShake = useCallback(() => {
     setShake(true);
@@ -91,43 +120,82 @@ export default function WordleGame() {
     setTimeout(() => setError(""), 2000);
   }, [triggerShake]);
 
+  const handleTileClick = useCallback((index: number) => {
+    if (gameState.status === "won" || gameState.status === "lost" || submitting) return;
+    setCursorPosition(index);
+  }, [gameState.status, submitting]);
+
   const submitGuess = useCallback(async () => {
-    if (currentGuess.length !== 5) {
+    const guess = guessSlots.join("");
+    if (guess.length !== 5 || guessSlots.some(s => s === "")) {
       showError("La palabra debe tener 5 letras");
       return;
     }
 
+    // Client-side validation (instant)
+    if (!isValidWord(guess)) {
+      showError("Palabra no válida");
+      return;
+    }
+
+    // Phase 1: Optimistic lock — start animation immediately
+    setPendingGuess(guess);
+    setRevealPhase("checking");
+    setGuessSlots([...EMPTY_SLOTS]);
+    setCursorPosition(0);
     setSubmitting(true);
+
+    // Phase 2: API call (runs in parallel with animation)
     try {
       const res = await fetch("/api/game/guess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ guess: currentGuess }),
+        body: JSON.stringify({ guess }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        // Revert: restore guess to editable slots
+        setPendingGuess(null);
+        setRevealPhase("none");
+        setGuessSlots(guess.split(""));
+        setCursorPosition(4);
         showError(data.error || "Error al enviar");
         setSubmitting(false);
         return;
       }
 
-      setGameState({
-        status: data.status === "playing" ? "playing" : data.status,
-        gameNumber: data.gameNumber,
-        guesses: data.guesses,
-        evaluations: data.evaluations,
-        word: data.word,
-        attempts: data.attempts,
-        points: data.points,
-      });
-      setCurrentGuess("");
+      // Apply evaluation colors
+      setPendingEvaluation(data.evaluation);
+      setRevealPhase("revealed");
+
+      // Wait for reveal animation to complete, then commit to gameState
+      revealTimeoutRef.current = setTimeout(() => {
+        setGameState({
+          status: data.status === "playing" ? "playing" : data.status,
+          gameNumber: data.gameNumber,
+          guesses: data.guesses,
+          evaluations: data.evaluations,
+          word: data.word,
+          attempts: data.attempts,
+          points: data.points,
+        });
+        setPendingGuess(null);
+        setPendingEvaluation(null);
+        setRevealPhase("none");
+        setSubmitting(false);
+      }, REVEAL_DURATION_MS);
     } catch {
+      // Revert on network error
+      setPendingGuess(null);
+      setRevealPhase("none");
+      setGuessSlots(guess.split(""));
+      setCursorPosition(4);
       showError("Error de conexión");
+      setSubmitting(false);
     }
-    setSubmitting(false);
-  }, [currentGuess, showError]);
+  }, [guessSlots, showError]);
 
   const handleKey = useCallback(
     (key: string) => {
@@ -136,12 +204,30 @@ export default function WordleGame() {
       if (key === "ENTER") {
         submitGuess();
       } else if (key === "⌫") {
-        setCurrentGuess((prev) => prev.slice(0, -1));
-      } else if (/^[A-ZÑ]$/.test(key) && currentGuess.length < 5) {
-        setCurrentGuess((prev) => prev + key);
+        setGuessSlots(prev => {
+          const newSlots = [...prev];
+          if (newSlots[cursorPosition] !== "") {
+            // Clear current position
+            newSlots[cursorPosition] = "";
+          } else if (cursorPosition > 0) {
+            // Move back and clear
+            newSlots[cursorPosition - 1] = "";
+            setCursorPosition(cursorPosition - 1);
+          }
+          return newSlots;
+        });
+      } else if (/^[A-ZÑ]$/.test(key)) {
+        setGuessSlots(prev => {
+          const newSlots = [...prev];
+          newSlots[cursorPosition] = key;
+          return newSlots;
+        });
+        if (cursorPosition < 4) {
+          setCursorPosition(cursorPosition + 1);
+        }
       }
     },
-    [gameState.status, submitting, submitGuess, currentGuess.length]
+    [gameState.status, submitting, submitGuess, cursorPosition]
   );
 
   if (gameState.status === "loading") {
@@ -177,8 +263,13 @@ export default function WordleGame() {
       <WordleBoard
         guesses={gameState.guesses}
         evaluations={gameState.evaluations}
-        currentGuess={currentGuess}
+        guessSlots={guessSlots}
+        cursorPosition={cursorPosition}
+        onTileClick={handleTileClick}
         shake={shake}
+        pendingGuess={pendingGuess}
+        pendingEvaluation={pendingEvaluation}
+        revealPhase={revealPhase}
       />
 
       {!isGameOver && (
