@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db";
 import GameResult from "@/lib/models/GameResult";
 import User from "@/lib/models/User";
 import { getWeekBoundsAR, getMonthBoundsAR } from "@/lib/date";
+import { getGameNumberForDate, getTodayDateAR } from "@/lib/game-number";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,10 +24,9 @@ export async function GET(req: NextRequest) {
       if (gn) {
         filter = { gameNumber: gn };
       } else {
-        // Get the latest game number
-        const latest = await GameResult.findOne().sort({ gameNumber: -1 });
-        if (!latest) return NextResponse.json([]);
-        filter = { gameNumber: latest.gameNumber };
+        // Use today's internal game number instead of searching for the max
+        const todayGameNumber = getGameNumberForDate(getTodayDateAR());
+        filter = { gameNumber: todayGameNumber };
       }
 
       const results = await GameResult.find(filter)

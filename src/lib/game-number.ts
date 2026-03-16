@@ -1,9 +1,8 @@
 import { nowAR } from "./date";
 
-// Reference point: game #1 of our in-app game starts on the date we launch.
-// Adjust these values when deploying.
-const REFERENCE_GAME_NUMBER = 1;
-const REFERENCE_DATE = "2026-03-15"; // YYYY-MM-DD in Argentina timezone
+// Continue from lapalabradeldia.com numbering: #1529 = 2026-03-16
+const REFERENCE_GAME_NUMBER = 1529;
+const REFERENCE_DATE = "2026-03-16"; // YYYY-MM-DD in Argentina timezone
 
 /** Returns the date string "YYYY-MM-DD" for today in Argentina timezone */
 export function getTodayDateAR(): string {
