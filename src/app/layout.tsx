@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 import Navbar from "@/components/Navbar";
 import ForcePasswordChange from "@/components/ForcePasswordChange";
+import NewModeBanner from "@/components/NewModeBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
       >
         <Providers>
           <ForcePasswordChange />
+          <NewModeBanner />
           <Navbar />
           <main className="max-w-4xl mx-auto px-4 pb-20 pt-4">
             {children}

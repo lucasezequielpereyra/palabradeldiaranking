@@ -7,7 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/", label: "Inicio" },
-  { href: "/submit", label: "Enviar" },
+  { href: "/jugar", label: "Jugar" },
   { href: "/ranking", label: "Ranking" },
   { href: "/winners", label: "Ganadores" },
 ];
@@ -168,7 +168,7 @@ export default function Navbar() {
             >
               <span className="text-lg">
                 {item.label === "Inicio" && "🏠"}
-                {item.label === "Enviar" && "📝"}
+                {item.label === "Jugar" && "🎮"}
                 {item.label === "Ranking" && "🏆"}
                 {item.label === "Ganadores" && "⭐"}
               </span>

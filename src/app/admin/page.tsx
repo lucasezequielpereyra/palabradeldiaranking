@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import AdminUserList from "@/components/AdminUserList";
+import AdminWordManager from "@/components/AdminWordManager";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -49,6 +50,7 @@ export default function AdminPage() {
         Panel de administración
       </h1>
       <AdminUserList users={users} onUpdate={fetchUsers} />
+      <AdminWordManager />
     </div>
   );
 }

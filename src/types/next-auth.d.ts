@@ -10,6 +10,7 @@ declare module "next-auth" {
       image?: string | null;
       isAdmin: boolean;
       mustChangePassword: boolean;
+      acceptedNewMode: boolean;
     };
   }
 }
@@ -20,5 +21,6 @@ declare module "next-auth/jwt" {
     nickname: string;
     isAdmin: boolean;
     mustChangePassword: boolean;
+    acceptedNewMode: boolean;
   }
 }

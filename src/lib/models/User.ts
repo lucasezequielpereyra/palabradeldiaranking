@@ -7,6 +7,7 @@ export interface IUser extends Document {
   isApproved: boolean;
   isAdmin: boolean;
   mustChangePassword: boolean;
+  acceptedNewMode: boolean;
   createdAt: Date;
 }
 
@@ -16,6 +17,7 @@ const UserSchema = new Schema<IUser>({
   isApproved: { type: Boolean, default: false },
   isAdmin: { type: Boolean, default: false },
   mustChangePassword: { type: Boolean, default: false },
+  acceptedNewMode: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 

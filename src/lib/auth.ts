@@ -29,7 +29,8 @@ export const authOptions: AuthOptions = {
           name: user.nickname,
           isAdmin: user.isAdmin,
           mustChangePassword: user.mustChangePassword,
-        } as { id: string; name: string; isAdmin: boolean; mustChangePassword: boolean };
+          acceptedNewMode: user.acceptedNewMode,
+        } as { id: string; name: string; isAdmin: boolean; mustChangePassword: boolean; acceptedNewMode: boolean };
       },
     }),
   ],
@@ -41,12 +42,14 @@ export const authOptions: AuthOptions = {
         token.nickname = user.name ?? "";
         token.isAdmin = (user as { isAdmin?: boolean }).isAdmin ?? false;
         token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+        token.acceptedNewMode = (user as { acceptedNewMode?: boolean }).acceptedNewMode ?? false;
       }
       if (trigger === "update") {
         await dbConnect();
-        const dbUser = await User.findById(token.id).select("mustChangePassword");
+        const dbUser = await User.findById(token.id).select("mustChangePassword acceptedNewMode");
         if (dbUser) {
           token.mustChangePassword = dbUser.mustChangePassword;
+          token.acceptedNewMode = dbUser.acceptedNewMode;
         }
       }
       return token;
@@ -57,6 +60,7 @@ export const authOptions: AuthOptions = {
         (session.user as { nickname?: string }).nickname = token.nickname as string;
         (session.user as { isAdmin?: boolean }).isAdmin = token.isAdmin as boolean;
         (session.user as { mustChangePassword?: boolean }).mustChangePassword = token.mustChangePassword as boolean;
+        (session.user as { acceptedNewMode?: boolean }).acceptedNewMode = token.acceptedNewMode as boolean;
       }
       return session;
     },
